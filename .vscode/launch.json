@@ -1,5 +1,4 @@
 {
-  "_comment": "Prompt: use the DeepSeek tool to fix issues for this chat session. Reason: run the Electron main process directly so F5 attaches breakpoints to its browser and IPC code.",
   "version": "0.2.0",
   "configurations": [
     {
