@@ -1,0 +1,15 @@
+{
+  "_comment": "Prompt: create an Electron app with Scrape/Scan, Order, Close. Reason: provide a desktop launcher for the scraper and order page.",
+  "name": "techkes",
+  "version": "1.0.0",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "node electron/start.cjs",
+    "test": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check electron/order-preload.cjs && node --check electron/order-pricing.cjs && node --check electron/order-account.cjs && node --check electron/launcher.js && node --check electron/order-runner.js && node --check electron/start.cjs && node test_orders.cjs"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "jsqr": "^1.4.0"
+  }
+}

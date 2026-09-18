@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bufkes lunch</title>
+    <style>
+    /* Prompt: restyle the order page without changing how it behaves.
+       Reason: the page still used the original flat grey layout, which gave no
+       visual weight to the order controls and buried the menu in empty space. */
+    :root
+    {
+      color-scheme: dark;
+      /* Prompt: match the red of the Techkes logo.
+         Reason: the logo is dark red (#920000), which has only 1.7:1 contrast on
+         these dark panels and is unreadable as text, so the brand red is used
+         for solid fills (with white on top) and a lighter tint carries text and
+         icons, the same split the previous teal pairing used. */
+      --bg: #1a1114;
+      --panel: #2a181c;
+      --card: #331d22;
+      --card-hover: #452730;
+      --line: #6b3a42;
+      --accent: #ff6b6b;
+      --accent-deep: #920000;
+      --accent-hover: #ab0000;
+      --text: #f7f0f1;
+      --muted: #c4aeb2;
+      --deep: #150c0e;
+    }
+    *
+    {
+      box-sizing: border-box;
+    }
+    body
+    {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(1200px 600px at 50% -10%, #1d2c45 0%, var(--bg) 60%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* The page is a single centred column: header, order controls, menu grid. */
+    .page
+    {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+    .grid-containerlist
+    {
+      display: grid;
+      grid-template-columns: repeat(1, minmax(300px, 1fr));
+      grid-auto-rows: auto;
+      background-color: transparent;
+      padding: 0;
+      grid-gap: 8px;
+    }
+    .grid-container
+    {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-auto-rows: 200px;
+      background-color: transparent;
+      padding: 0;
+      grid-gap: 14px;
+      margin-top: 18px;
+    }
+    /* Prompt: make menu tiles read as clickable cards.
+       Reason: a soft shadow and lift on hover signal they open a submenu. */
+    .grid-item
+    {
+      background-color: var(--card);
+      padding: 20px;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: .2px;
+      text-align: center;
+      background-size: cover;
+      background-position: center;
+      height: 100%;
+      border-radius: 14px;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+      transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    }
+    .grid-item:hover
+    {
+      transform: translateY(-3px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 26px rgba(0, 0, 0, .5);
+    }
+    .grid-item::after
+    {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, .55) 72%, rgba(0, 0, 0, .85) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    #Logo
+    {
+      text-align: center;
+      padding: 8px 0 4px;
+    }
+    /* Prompt: reserve room for the fixed orders button only where the logo
+       would otherwise reach it. Reason: the logo is wide enough to overlap the
+       top-right button below ~1100px, but reserving that space at all widths
+       leaves a large dead gap on wide screens. */
+    @media (max-width: 1100px)
+    {
+      #Logo { padding-top: 68px; }
+    }
+    #Logo img
+    {
+      /* ShowItems swaps this img between the wide Bufkes banner and square
+         category photos, so bounds must hold for both shapes: cap the width and
+         the height, and let object-fit shrink whichever dimension is over. */
+      width: auto;
+      height: auto;
+      max-width: 760px;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 16px;
+      filter: drop-shadow(0 8px 20px rgba(0, 0, 0, .45));
+    }
+    /* Prompt: give the order controls their own panel.
+       Reason: the email box and Send button were indistinguishable white bars. */
+    .grid-item-selection
+    {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      font-size: 16px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    /* Prompt: style the order rows added by AddItemToSelection.
+       Reason: each added item should read as a removable chip, not a grey bar. */
+    .grid-item-selection:has(.RemoveButton)
+    {
+      justify-content: space-between;
+      text-align: left;
+    }
+    /* Prompt: show the remove control as a white stroke icon.
+       Reason: the old bitmap was a black glyph on a cream square, which read as
+       a dark blob against the panel and hid the trash shape entirely. */
+    .RemoveButton
+    {
+      width: 26px;
+      height: 26px;
+      flex: 0 0 auto;
+      padding: 2px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      transition: color .16s ease, background .16s ease, transform .16s ease;
+    }
+    /* Prompt: keep hover white-on-tint rather than red.
+       Reason: the page accent is now red, so a red hover would not stand out
+       from the surrounding chips the way it did against the old teal theme. */
+    .RemoveButton:hover
+    {
+      color: #fff;
+      background: rgba(255, 255, 255, .16);
+      transform: scale(1.08);
+    }
+    .RemoveButton svg
+    {
+      display: block;
+      width: 100%;
+      height: 100%;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .grid-item span
+    {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1;
+      padding: 0 10px;
+      box-sizing: border-box;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+    }
+    /* Prompt: render Back/Home as an icon on the standard card, like menu items.
+       Reason: the old bitmaps were black glyphs on an orange circle sized for
+       the light page, so on the dark theme their black background showed as a
+       visible square and the orange clashed with the teal accent. */
+    .grid-item.nav-item
+    {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-image: none;
+      background-color: var(--panel);
+      border-color: var(--line);
+    }
+    /* The tiles have a photo scrim; a solid panel background does not need it. */
+    .grid-item.nav-item::after
+    {
+      background: none;
+    }
+    .grid-item.nav-item:hover
+    {
+      background-color: var(--card-hover);
+    }
+    .grid-item.nav-item svg
+    {
+      width: 54px;
+      height: 54px;
+      z-index: 1;
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform .16s ease;
+    }
+    .grid-item.nav-item:hover svg
+    {
+      transform: scale(1.12);
+    }
+    .grid-item.nav-item span
+    {
+      position: static;
+      color: var(--accent);
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    /* Inputs and buttons default to browser chrome, so restyle them together. */
+    input[type=email], input[type=text]
+    {
+      flex: 1 1 320px;
+      min-width: 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--deep);
+      color: var(--text);
+      font: inherit;
+    }
+    input[type=submit], button
+    {
+      flex: 0 0 auto;
+      padding: 12px 22px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: var(--accent-deep);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .16s ease;
+    }
+    input[type=submit]:hover, button:hover
+    {
+      background: var(--accent-hover);
+    }
+    input:focus-visible, button:focus-visible
+    {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+    /* Prompt: keep the orders button visible over scrolling tiles.
+       Reason: it floated above unstyled content with no separation. */
+    #ShowOrders
+    {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--accent);
+      font-size: 22px;
+      line-height: 1;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+      z-index: 20;
+    }
+    #ShowOrders:hover
+    {
+      background: var(--card-hover);
+      border-color: var(--accent);
+    }
+    /* Prompt: show a banner for send/validation results instead of an alert.
+       Reason: alert() blocked the page and left no visible trace afterwards. */
+    #Notice
+    {
+      display: none;
+      margin: 14px 0 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 15px;
+    }
+    #Notice.show { display: block; }
+    /* Errors need to read as errors on a red-themed page, so use a warm amber
+       rather than red, which the accent already owns. */
+    #Notice.error { border-color: #e5a13a; color: #ffd9a0; }
+
+    /* Prompt: list open orders in a scrollable dialog instead of an alert.
+       Reason: long orders were truncated and could not be scrolled or copied. */
+    #OrdersPanel
+    {
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      width: min(620px, calc(100vw - 32px));
+      height: fit-content;
+      max-height: calc(100vh - 64px);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+      z-index: 30;
+    }
+    #OrdersPanelHeader
+    {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    #OrdersPanelClose
+    {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border-radius: 9px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1;
+    }
+    #OrdersPanelClose:hover { background: var(--card-hover); color: var(--text); }
+    #OrdersPanelBody
+    {
+      overflow-y: auto;
+      padding: 14px 16px 18px;
+    }
+    #OrdersPanelEmpty { color: var(--muted); margin: 0; }
+    .order-card
+    {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--deep);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .order-card:last-child { margin-bottom: 0; }
+    .order-card h3
+    {
+      margin: 0 0 6px;
+      font-size: 15px;
+      color: var(--accent);
+      overflow-wrap: anywhere;
+    }
+    .order-card pre
+    {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: inherit;
+      font-size: 14px;
+      color: var(--text);
+    }
+    @media (max-width: 640px)
+    {
+      .page { padding: 16px 12px 40px; }
+      .grid-container { grid-auto-rows: 160px; grid-gap: 10px; }
+      #Logo img { max-width: 420px; max-height: 200px; }
+      /* Prompt: raise the button clear of the tallest logo on narrow screens. */
+      #ShowOrders { top: 10px; right: 10px; }
+    }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+    <div id="Logo"><img alt="Bufkes"></div>
+    <div class="grid-containerlist" id="SelectionList"></div>
+    <div class="grid-container" id="ItemList"></div>
+    </div>
+	<script type="text/javascript" src="MainItems.js"></script>
+      <script type="module">
+			
+			//message that state will be lost
+			window.onbeforeunload = function() 
+			{  
+				if (OrderPlaced) { return; }
+				return 0; 
+			} 
+			//handle mouse events
+			window.addEventListener("mouseup", (e) => 
+			{
+				switch (e.button) 
+				{
+					case 3: //back
+					{
+						GoBack();
+						break;
+					}
+					case 0: //left
+					case 1: // middle
+					case 2: //right
+					default:
+					console.log("mouse button:"+e.button);
+				}
+			});
+			// init vars
+			let DefaultText = "Please enter your company E-mail";
+			let OrderPlaced = true;
+			let CanGoBack = false;
+			let Logo = document.getElementById("Logo"); 
+			let ItemList = document.getElementById("ItemList"); 
+			let SelectionList = document.getElementById("SelectionList"); 
+			let PreviousItems = [];
+			let PreviousClicked = [];
+			let SelectionString = "";
+			let OrderSelection = document.createElement("div");
+			OrderSelection.className = "grid-item-selection";
+
+			let OrderName = document.createElement("input");
+			OrderName.type = "email";
+			OrderName.id = "OrderEmail";
+			OrderName.placeholder = DefaultText;
+			OrderName.value = DefaultText;
+			OrderName.autocomplete = "email";
+			OrderName.setAttribute("aria-label", "Your company e-mail");
+			OrderName.onclick= (event) => { if(OrderName.value === DefaultText){ OrderName.value = ""; } }; //clear value is default
+			OrderSelection.append(OrderName);
+
+			let OrderBtn = document.createElement("input");
+			OrderBtn.type = "submit";
+			OrderBtn.value = "Send";
+			OrderBtn.id = "OrderSend";
+			OrderBtn.onclick= (event) => { SendCurrentOrder(); };
+			OrderSelection.append(OrderBtn);
+
+			let ShowMenuBtn = document.createElement("button");
+			ShowMenuBtn.type = "button";
+			ShowMenuBtn.id = "ShowOrders";
+			ShowMenuBtn.textContent = "☰";
+			ShowMenuBtn.title = "Show orders";
+			ShowMenuBtn.setAttribute("aria-label", "Show current orders");
+			ShowMenuBtn.onclick= (event) => { ShowMenu(); };
+			document.body.append(ShowMenuBtn);
+
+			// Prompt: drop the unused order-time element.
+			// Reason: it only ever held "-" and its updater computed nothing.
+			SelectionList.append(OrderSelection); 
+			GoHome();
+
+			function ShowMenu()
+			{
+				ShowCurrentOrders();
+			}
+
+			// Prompt: report send results inline instead of through alert().
+			// Reason: a modal dialog froze the page for every validation error and
+			// left the operator with no visible confirmation once dismissed.
+			// Prompt: keep the notice as a direct child of the selection list.
+			// Reason: it must survive the list being cleared, so it is re-added
+			// if something removed it rather than being looked up and forgotten.
+			function ShowNotice(message, isError)
+			{
+				let Notice = document.getElementById("Notice");
+				if(!Notice)
+				{
+					Notice = document.createElement("p");
+					Notice.id = "Notice";
+					Notice.setAttribute("role", "status");
+				}
+				if(Notice.parentNode !== SelectionList)
+				{
+					Notice.remove();
+					SelectionList.append(Notice);
+				}
+				Notice.textContent = message;
+				Notice.className = isError ? "show error" : "show";
+			}
+
+			function ClearNotice()
+			{
+				let Notice = document.getElementById("Notice");
+				if(Notice) { Notice.className = ""; }
+			}
+
+			async function SendCurrentOrder()
+			{
+				let isEmail = OrderName.value.includes('@');
+				isEmail &= (OrderName.value.includes('innovatech-rd.com') || OrderName.value.includes('innovatest-europe.com'));
+				if(!isEmail)
+				{
+					ShowNotice("Please enter valid and allowed e-mail", true);
+					return;
+				}
+				let headersList =
+				{
+					"Accept": "*/*",
+					"User-Agent": "API",
+					"Content-Type": "application/json"
+				}
+
+				let StringOrderItems = "";
+				const ListOrderItems = SelectionList.innerHTML.split("grid-item-selection");
+				for (let x = 2; x < ListOrderItems.length; x ++)
+				{
+					const ListOrderItemValue = ListOrderItems[x].split("<");
+					StringOrderItems+= ListOrderItemValue[0].substr(2, ListOrderItemValue[0].length-2) +"\n";
+				}
+				if(StringOrderItems.trim().length === 0)
+				{
+					ShowNotice("Your order is empty.", true);
+					return;
+				}
+
+				Object.assign(headersList, {[GetData("0")]: GetData("s9")});
+				// Prompt: drop the "repo" field, which GitHub ignores.
+				// Reason: the real destination is the URL above, so a "repo" key
+				// here was misleading and is what led the two calls to disagree.
+				let bodyContent = JSON.stringify(
+				{
+					"title": OrderName.value,
+					"body": StringOrderItems
+				});
+				let response = await fetch("https://api.github.com/repos/rdeneer-innovatech/Techkes/issues",
+				{
+					method: "POST",
+					body: bodyContent,
+					headers: headersList
+				});
+
+				let data = await response.text();
+				console.log(data);
+				OrderPlaced = true;
+				// Prompt: clear the list but keep the controls and the notice.
+				// Reason: resetting innerHTML would also destroy OrderSelection
+				// and the notice appended after it, so the message never showed.
+				let OldItems = SelectionList.querySelectorAll(".grid-item-selection:not(:has(#OrderEmail))");
+				for (let i = 0; i < OldItems.length; i+=1) { OldItems[i].remove(); }
+				ShowNotice(response.ok ? "Request has been received" : "Could not send order. ("+response.status+")", !response.ok);
+				OrderName.value = DefaultText;
+				GoHome();
+			}
+			
+			async function ShowCurrentOrders()
+			{
+				let headersList = 
+				{
+					"Accept": "application/vnd.github+json",
+					"User-Agent": "API"
+				}			
+				Object.assign(headersList, {[GetData("0")]: GetData("s9")});
+				let response = await fetch("https://api.github.com/repos/rdeneer-innovatech/Techkes/issues?state=open",
+				{ 
+					method: "GET",
+					headers: headersList
+				});
+
+				if(!response.ok)
+				{
+					ShowOrdersPanel([], "Failed to load orders. ("+response.status+")", "Could not load orders");
+					return;
+				}
+
+				let issues = await response.json();
+				if(!Array.isArray(issues) || issues.length === 0)
+				{
+					ShowOrdersPanel([], "No open orders yet.");
+					return;
+				}
+
+				let lines = [];
+				for (let i = 0; i < issues.length; i+=1)
+				{
+					let issue = issues[i];
+					let title = String(issue.title || "Untitled");
+					let commentText = String(issue.body || "(no comments)");
+					if(issue.comments_url)
+					{
+						let commentResponse = await fetch(issue.comments_url+"?per_page=1&sort=created&direction=asc",
+						{
+							method: "GET",
+							headers: headersList
+						});
+						if(commentResponse.ok)
+						{
+							let comments = await commentResponse.json();
+							if(Array.isArray(comments) && comments.length > 0)
+							{
+								commentText = String(comments[0].body || "(empty comment)");
+							}
+						}
+					}
+					lines.push({ title: title, body: commentText });
+				}
+
+				ShowOrdersPanel(lines);
+			}
+
+			// Prompt: list open orders in a panel instead of a blocking alert.
+			// Reason: alert() truncated long orders, could not be scrolled or
+			// copied, and froze the page while it was open.
+			function ShowOrdersPanel(orders, emptyMessage, title)
+			{
+				let Existing = document.getElementById("OrdersPanel");
+				if(Existing) { Existing.remove(); }
+
+				let Panel = document.createElement("div");
+				Panel.id = "OrdersPanel";
+				Panel.setAttribute("role", "dialog");
+				Panel.setAttribute("aria-label", "Open orders");
+
+				let Header = document.createElement("div");
+				Header.id = "OrdersPanelHeader";
+				let Heading = document.createElement("strong");
+				if(title) { Heading.textContent = title; }
+				else if(orders.length === 0) { Heading.textContent = "Open orders"; }
+				else { Heading.textContent = orders.length === 1 ? "1 open order" : orders.length + " open orders"; }
+				let CloseBtn = document.createElement("button");
+				CloseBtn.type = "button";
+				CloseBtn.id = "OrdersPanelClose";
+				CloseBtn.textContent = "✕";
+				CloseBtn.setAttribute("aria-label", "Close orders");
+				CloseBtn.onclick = () => { Panel.remove(); };
+				Header.append(Heading, CloseBtn);
+				Panel.append(Header);
+
+				let Body = document.createElement("div");
+				Body.id = "OrdersPanelBody";
+				if(orders.length === 0)
+				{
+					let Note = document.createElement("p");
+					Note.id = "OrdersPanelEmpty";
+					Note.textContent = emptyMessage || "No open orders yet.";
+					Body.append(Note);
+				}
+				for (let i = 0; i < orders.length; i+=1)
+				{
+					let Card = document.createElement("article");
+					Card.className = "order-card";
+					let Who = document.createElement("h3");
+					Who.textContent = orders[i].title;
+					let What = document.createElement("pre");
+					What.textContent = orders[i].body;
+					Card.append(Who, What);
+					Body.append(Card);
+				}
+				Panel.append(Body);
+				document.body.append(Panel);
+
+				// Escape closes the panel, matching the ✕ button.
+				Panel.addEventListener("keydown", (e) => { if(e.key === "Escape"){ Panel.remove(); } });
+				CloseBtn.focus();
+			}
+			function GetData(Loc)
+			{
+				if(Loc == "0") 
+				{
+					return ConvertTo("4377766a71746b7c63766B7170");
+				}
+				else
+				{
+					let Result = "";
+					Result += ConvertTo("44676374677422696a72616f");
+					Result += ConvertTo("49654d44787a5c336b4f66724e4749465a");
+					Result += ConvertTo("76434b57476349677c724d3634685359");
+					return Result+Loc;
+				}
+			}		
+			function ConvertTo(Data)
+			{
+				let strOut = "";
+				for (let x = 0; x < Data.length; x += 2)
+				{
+					strOut += String.fromCharCode(parseInt(Data.substr(x, 2), 16)-2);
+				}
+				return strOut;
+			}
+			// Prompt: keep option tiles readable when an option has no image file.
+			// Reason: some choices (Zonder spek, Ketchup, Groot) are named on the
+			// menu without a picture, so ./img/<name>.jpg does not exist and the
+			// tile rendered as an empty card. The parent's image is already the
+			// right context at that point in the sequence, so it is used only as
+			// a fallback and never written back into MainItems.js.
+			function ApplyTileImage(Tile, Source, Fallback)
+			{
+				const Unquote = Value => String(Value == null ? "" : Value).replace(/^['"]|['"]$/g, "");
+				Tile.style.backgroundImage = "url("+Source+")";
+				const Wanted = Unquote(Source);
+				if(!Wanted || Wanted === Unquote(Fallback)) { return; }
+				const Probe = new Image();
+				Probe.onerror = () => { Tile.style.backgroundImage = "url("+Fallback+")"; };
+				Probe.src = Wanted;
+			}
+			function ShowItems(Items)
+			{
+				//Add the current item to the navigationlist 
+				PreviousItems.push({ key: Object.keys(PreviousItems).length, value: Items });
+				ItemList.innerHTML = ""; 
+				CanGoBack = Items != AllMainItems;
+				if(Items != AllMainItems)
+				{
+					//add back button
+					let NewItem = document.createElement("div");
+					NewItem.className = "grid-item nav-item";
+					NewItem.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+						+ '<path d="M15 5l-7 7 7 7"/>'
+						+ '</svg><span>Back</span>';
+					NewItem.setAttribute("role", "button");
+					NewItem.tabIndex = 0;
+					NewItem.onclick= (event) => { GoBack(); };
+					ItemList.append(NewItem);
+				}
+				Logo.innerHTML="<img src="+Items.IMG+">";
+				let CurrentItems = Object.keys(Items);
+				for (let i = 1; i < CurrentItems.length; i+=1) //Skip first value (should be IMG)
+				{
+				  let ItemOption = Items[CurrentItems[i]][0];
+				  let NewItem = document.createElement("div");
+				  NewItem.className = "grid-item";
+				  ApplyTileImage(NewItem, ItemOption.IMG, Items.IMG);
+				  NewItem.innerHTML = "<span>"+CurrentItems[i]+"</span>";
+				  NewItem.onclick= (event) => 
+				  {
+					console.log("Clicked on: "+CurrentItems[i]);
+					PreviousClicked.push({ key: Object.keys(PreviousClicked).length, value: CurrentItems[i] });
+					ShowItems(ItemOption);
+				  };
+				  ItemList.append(NewItem);
+				}
+				//if there are no more items to show -> add to selection
+				if(CurrentItems.length == 1){ AddItemToSelection(); }
+				else if(Items!=AllMainItems && Object.keys(PreviousClicked).length > 1)
+				{
+					//Add home button
+					let NewItem = document.createElement("div");
+					NewItem.className = "grid-item nav-item";
+					NewItem.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+						+ '<path d="M4 10.5L12 4l8 6.5"/>'
+						+ '<path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/>'
+						+ '</svg><span>Home</span>';
+					NewItem.setAttribute("role", "button");
+					NewItem.tabIndex = 0;
+					NewItem.onclick= (event) => { GoHome(); };
+					ItemList.append(NewItem);
+				}
+			}   
+			function AddItemToSelection()
+			{
+				OrderPlaced = false;
+				ClearNotice();
+				console.log(PreviousClicked);
+				let FullItemString = "";
+				for (let i = 0; i < Object.keys(PreviousClicked).length; i+=1) { FullItemString+=PreviousClicked[i].value+"\\"; }
+				let ItemToAdd = FullItemString.substring(0, FullItemString.length - 1)
+				GoHome();
+				console.log("Added to order list");
+				let NewItemSelection = document.createElement("div");
+				NewItemSelection.className = "grid-item-selection";
+				NewItemSelection.innerHTML = ItemToAdd;
+				// Prompt: use an inline SVG trash icon instead of a bitmap.
+				// Reason: the bitmap was black-on-cream and invisible on the dark
+				// panel; a stroke icon inherits currentColor and stays crisp.
+				// It must be appended AFTER the item text: SubmitOrder reads the
+				// order by splitting the list's innerHTML and taking the text up
+				// to the first "<", so anything HTML must follow the name.
+				let RemoveButton = document.createElement("button");
+				RemoveButton.type = "button";
+				RemoveButton.className = "RemoveButton";
+				RemoveButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+					+ '<path d="M4 7h16"/>'
+					+ '<path d="M10 4h4a1 1 0 0 1 1 1v2h-6V5a1 1 0 0 1 1-1z"/>'
+					+ '<path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/>'
+					+ '<path d="M10 11v6M14 11v6"/>'
+					+ '</svg>';
+				RemoveButton.setAttribute("aria-label", "Remove " + ItemToAdd);
+				RemoveButton.title = "Remove " + ItemToAdd;
+				NewItemSelection.append(RemoveButton);
+				RemoveButton.onclick= (event) => 
+				{ 
+					if(confirm("Want to delete "+ItemToAdd+"?")) { NewItemSelection.remove(); }
+				};
+				SelectionList.append(NewItemSelection);
+				SelectionString = "";
+			}
+			function GoHome()
+			{
+				PreviousItems = [];
+				PreviousClicked = [];
+				ShowItems(AllMainItems);
+			}
+			function GoBack()
+			{
+				if(!CanGoBack){return;}
+				let CurrentPage = PreviousItems.pop();	
+				let PreviousPage = PreviousItems.pop();
+				PreviousClicked.pop();
+				ShowItems(PreviousPage.value);
+			}
+      </script>
+  </body>
+</html>

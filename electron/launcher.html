@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Prompt: create an Electron app with Scrape/Scan, Order, Close.
+     Reason: provide one starting screen and a menu scanning form. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <title>Techkes</title>
+  <link rel="stylesheet" href="launcher.css">
+</head>
+<body>
+  <main>
+    <!-- Prompt: change “Your lunch” to “Our Lunch”.
+         Reason: use the requested collective wording in the launcher tagline. -->
+    <p class="eyebrow">OUR LUNCH, SORTED</p>
+    <!-- Prompt: remove the visible Techkes heading.
+         Reason: keep the compact launcher focused on its action buttons. -->
+    <p class="intro">Scan a restaurant menu or start your order.</p>
+    <!-- Prompt: give the start buttons icons and place them in three columns.
+         Reason: make the launcher actions compact and immediately recognisable. -->
+    <nav aria-label="Main actions">
+      <button id="show-scan"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v12H4zM8 20h8M12 16v4M9 8h6M9 11h3"/></svg><span>Scrape/Scan</span></button>
+      <button id="order"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16v12H4zM8 7V4h8v3M8 12h8M12 10v4"/></svg><span>Order</span></button>
+      <button id="close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Close</span></button>
+    </nav>
+    <section id="scan-panel" hidden>
+      <h2>Scan a menu</h2>
+      <p>This updates the menu used by Order.</p>
+      <form id="scan-form">
+        <label for="url">Thuisbezorgd menu URL</label>
+        <!-- Prompt: when scanning use the default url https://www.thuisbezorgd.nl/menu/bufkes-plein-1992.
+             Reason: prefill the usual restaurant menu while allowing the operator to replace it. -->
+        <input id="url" type="url" value="https://www.thuisbezorgd.nl/menu/bufkes-plein-1992" placeholder="https://www.thuisbezorgd.nl/menu/..." required>
+        <label class="checkbox"><input id="images" type="checkbox" checked> Download menu images</label>
+        <button id="start" type="submit">Start scan</button>
+      </form>
+      <!-- Prompt: show scan phases as progress bars.
+           Reason: a multi-minute scan looked frozen with only a log to read. -->
+      <section id="progress" aria-label="Scan progress" hidden>
+        <h3>Progress</h3>
+        <div id="phases"></div>
+        <p id="summary"></p>
+      </section>
+      <!-- Prompt: preview the parsed menu before ordering.
+           Reason: let the operator confirm what was scanned without reading 103 items in a log. -->
+      <section id="tree-panel" aria-label="Scanned menu" hidden>
+        <h3>Scanned menu</h3>
+        <div id="tree"></div>
+      </section>
+      <pre id="output" aria-label="Scan output" tabindex="0"></pre>
+    </section>
+    <!-- Prompt: add a persistent bottom status bar like OrderManager.
+         Reason: always show the current application state, including when idle. -->
+    <p id="status" role="status" aria-live="polite">Ready</p>
+  </main>
+  <script src="launcher.js"></script>
+</body>
+</html>

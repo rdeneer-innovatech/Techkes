@@ -1,0 +1,45 @@
+# Prompt: make a GitHub Action (manual) that does the scan on a Windows runner and updates MainItems.js.
+# Reason: let maintainers regenerate the tracked menu data on demand without using a local desktop setup.
+name: Scan Thuisbezorgd menu
+
+on:
+  workflow_dispatch:
+    inputs:
+      menu_url:
+        description: Thuisbezorgd menu URL to scan
+        required: true
+        default: https://www.thuisbezorgd.nl/menu/bufkes-plein-1992
+        type: string
+
+# Prompt: make a GitHub Action (manual) that does the scan on a Windows runner and updates MainItems.js.
+# Reason: grant the workflow permission to commit the regenerated tracked file to its triggering branch.
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: windows-latest
+    steps:
+      - name: Check out the triggering branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      # Prompt: make a GitHub Action (manual) that does the scan on a Windows runner and updates MainItems.js.
+      # Reason: run the existing standard-library scraper while deliberately leaving image assets unchanged.
+      - name: Scan menu
+        shell: pwsh
+        run: py -3 scrape_thuisbezorgd.py "${{ inputs.menu_url }}" --out . --no-images
+
+      # Prompt: make a GitHub Action (manual) that does the scan on a Windows runner and updates MainItems.js.
+      # Reason: publish the generated menu only when its content changed, avoiding empty commits.
+      - name: Commit updated MainItems.js
+        shell: pwsh
+        run: |
+          if (-not (git diff --quiet -- MainItems.js)) {
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add MainItems.js
+            git commit -m "chore: update scanned menu"
+            git push origin "HEAD:${{ github.ref }}"
+          }
